@@ -1,0 +1,58 @@
+@app.patch("/users/<user_pk>")
+def update_user(user_pk):
+    try:
+        #TODO: validate user_pk
+        user_name = request.form.get("user_name")
+        user_last_name = request.form.get("user_last_name")
+        db, cursor = x.db()
+        
+        """ if user_name and user_last_name:
+            q = "UPDATE users SET user_name = %s, user_last_name = %s WHERE user_pk = %s"
+            cursor.execute(q, (user_name, user_last_name, user_pk))
+        elif user_name and not user_last_name:
+            q = "UPDATE users SET user_name = %s WHERE user_pk = %s"
+            cursor.execute(q, (user_name, user_pk))
+        elif user_last_name and not user_name:
+            q = "UPDATE users SET user_last_name = %s WHERE user_pk = %s"
+            cursor.execute(q, (user_last_name, user_pk))
+        else:
+            return "Please enter a name or last name to update", 400 # Maybe 422
+            pass
+        """
+
+        # Gather the user_name and user_last_name in a dictionary so we can grab keys and values
+        form_fields = {
+            "user_name" : user_name,
+            "user_last_name" : user_last_name,
+        }
+
+        # Loop through the form_fields to determine whether value exists for specific key
+        # and update in new dictionary if it has a value
+        updated_fields = {}
+        for key, value in form_fields.items():
+            if value:
+                updated_fields[key] = value.strip() # Also strips the text for extra spaces in front and back
+        
+        # Return 400 status code if no field has been updated
+        if not updated_fields:
+            return "Please fill out one of the fields", 400
+        
+        # Build the set string of the query to insert dynamically
+        # Use string method .join to join them together with ", "
+        # by looping through the keys and adding = %s to each key
+        set_key = ", ".join(f"{key} = %s" for key in updated_fields.keys())
+
+        # Create a tuple for the cursor.execute and placeholders based on the values
+        # Plus the user_pk since our test expects an "id" to pass
+        values = tuple(updated_fields.values()) + (user_pk, ) # Tuple joining together
+
+        # F-string to insert variable set_key depending on amount of values
+        q = f"UPDATE users SET {set_key} WHERE user_pk = %s"
+        cursor.execute(q, values)
+        db.commit()
+        return jsonify({"id":user_pk, "message": "User updated"}) # Return jsonify? 
+    except Exception as ex:
+        pass
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
