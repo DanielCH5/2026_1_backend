@@ -4,335 +4,89 @@ import uuid
 app = Flask(__name__)
 
 
-
 ##############################
-@app.get("/")
-def show_index():
+@app.post("/signup")
+def signup():
     try:
-        return render_template("page_index.html")
-    except Exception as ex:
-        return "system under maintenance ...", 500
+        # First validate, then generate (Don't waste computer power in case there's an error)
+        user_first_name = x.validate_user_first_name()
+        user_last_name = x.validate_user_last_name()
+        user_username = x.validate_user_username()
 
-##############################
-@app.get("/items")
-def show_items():
-    try:
+        user_pk = uuid.uuid4().hex # Removes dashes
         db, cursor = x.db()
-        q = "SELECT * FROM users"
-        cursor.execute(q)
-        users = cursor.fetchall()
-        return render_template("items.html", users=users)
-    except Exception as ex:
-        print(ex, flush = True)
-        return "system under maintenance ...", 500
-    finally:
-        if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()
 
-
-
-
-
-##############################
-"""
-@app.get("/items")
-def get_all_items():
-    try:
-        db, cursor = x.db()
-        q = "SELECT * FROM users"
-        cursor.execute(q)
-        users = cursor.fetchall()
-        return jsonify(users)
-    except Exception as ex:
-        print(ex, flush=True)
-        return "ups ...", 500
-    finally:
-        if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()
-"""
-
-##############################
-@app.get("/items/<id>")
-def get_item_by_id(id):
-    try:
-        # Best case scenario
-        # TODO: Validate the id
-        # Connect to the database
-        db, cursor = x.db()
-        # Create a query
-        q = "SELECT * FROM users WHERE user_pk = %s"
-        # Execute the query. The second argument is a tuple
-        # If the tuple only has 1 argument, then a comma after the argument
-        cursor.execute(q, (id,))
-        user = cursor.fetchone()
-        return jsonify(user)
-    except Exception as ex:
-        # Worst case scenario
-        print(ex, flush=True)
-        return "ups ...", 500
-    finally:
-        # Runs after the try or after the except
-        # In other words, it always runs
-        if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()
-
-
-
-##############################
-@app.get("/user/<user_pk>")
-def get_user_by_id(user_pk):
-    try:
-        # Best case scenario
-        # TODO: Validate the id
-        # Connect to the database
-        db, cursor = x.db()
-        # Create a query
-        q = "SELECT * FROM users WHERE user_pk = %s"
-        # Execute the query. The second argument is a tuple
-        # If the tuple only has 1 argument, then a comma after the argument
-        cursor.execute(q, (user_pk,))
-        user = cursor.fetchone()
-        status_change = {"message": "User:", "color": "status-green"}
-        user_more_html = render_template("___user_more.html", user=user, status_change=status_change)
-        return f"""
-            <browser mix-update="#right">
-            {user_more_html}
-            </browser>
-        """
-    except Exception as ex:
-        # Worst case scenario
-        print(ex, flush=True)
-        return "ups ...", 500
-    finally:
-        # Runs after the try or after the except
-        # In other words, it always runs
-        if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()
-
-
-
-
-
-
-
-
-
-
-##############################
-@app.post("/users")
-def create_user():
-    try:
-        # TODO: Validate user_name
-        # TODO: Validate user_last_name
-
-        user_pk = uuid.uuid4().hex
-        user_name = request.form.get("user_name")
-        user_last_name = request.form.get("user_last_name")
-
-        db, cursor = x.db()
-        q = "INSERT INTO users VALUES(%s, %s, %s)"
-        cursor.execute(q, (user_pk, user_name, user_last_name))
+        q = "INSERT INTO users VALUES(%s, %s, %s, %s)"
+        cursor.execute(q, (user_pk, user_first_name, user_last_name, user_username))
         db.commit()
-
-        user = {
-            "user_pk" : user_pk,
-            "user_name" : user_name,
-            "user_last_name" : user_last_name
-        }
-
-        user_html = render_template("___user.html", user=user)
-
-        return f"""
-            <browser mix-after-begin="#users">
-                {user_html}
-            </browser>
-        """
+        return "ok"
     except Exception as ex:
-        pass
-    finally:
-        if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()
 
+        if "Duplicate entry" in str(ex) and "user_username" in str(ex):
+            return "Username already in the system", 400
 
-##############################
-"""
-@app.post("/users")
-def create_user():
-    try:
-        # TODO: Validate user_name
-        # TODO: Validate user_last_name
-
-        user_pk = uuid.uuid4().hex
-        user_name = request.form.get("user_name")
-        user_last_name = request.form.get("user_last_name")
-
-        db, cursor = x.db()
-        q = "INSERT INTO users VALUES(%s, %s, %s)"
-        cursor.execute(q, (user_pk, user_name, user_last_name))
-        db.commit()
-        return jsonify({"id":user_pk}), 201
-    except Exception as ex:
-        pass
-    finally:
-        if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()
-"""
-
-##############################
-@app.delete("/users/<user_pk>")
-def delete_user(user_pk):
-    try:
-        # TODO: validate user_pk
-        db, cursor = x.db()
-        q = "DELETE FROM users WHERE user_pk = %s"
-        cursor.execute(q, (user_pk,))
-        db.commit()
-        return f"""
-            <browser mix-remove="#user-{user_pk}" mix-fade-2000>
-            </browser>
-        """
-        #return "", 204
-    except Exception as ex:
-        pass
-    finally:
-        if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()
-
-##############################
-@app.patch("/items/<id>")
-def update_item(id):
-    try:
-
-        parts = []
-        values = []
-
-        user_name = request.form.get("user_name", "")
-        user_name = user_name.strip()
-        if user_name:
-            parts.append("user_name = %s")
-            values.append(user_name)
-
-        user_last_name = request.form.get("user_last_name", "")
-        user_last_name = user_last_name.strip()
-        if user_last_name:
-            parts.append("user_last_name = %s")
-            values.append(user_last_name)
-
-        if not user_name and not user_last_name: return "nothing to update", 400
-        # Convert the list to a string with a comma in between
-        partial_query = ", ".join(parts)
-
-        values.append(id)
-
-        print(parts, flush=True)
-        print(values, flush=True)
-        print(partial_query, flush=True)
-
-        q = f"""
-            UPDATE users
-            SET	{partial_query}
-            WHERE user_pk = %s
-        """
-        print(q, flush=True)
-
-        db, cursor = x.db()
-        cursor.execute(q, values)
-        db.commit()
-        return f"{user_name} {user_last_name}"
-
-
-    except Exception as ex:
-        print(ex)
-        # Cast the exception to an string
-        return str(ex), 500 # Internal server error
-    finally:
-        if "cursor" in locals(): cursor.close()
-        if "db" in locals(): db.close()
-
-@app.patch("/user/<user_pk>")
-def update_user(user_pk):
-    try:
-        # First we should find a way to get the current name + last name
-        db, cursor = x.db()
-        q1 = "SELECT * FROM users WHERE user_pk = %s"
-        cursor.execute(q1, (user_pk,))
-        user = cursor.fetchone()
-
-        # Then we use the update function that we previously created
-        parts = []
-        values = []
-        empty_fields = 0
-        new_user_name = request.form.get("user_name", "")
-        new_user_name = new_user_name.strip()
-        new_user_last_name = request.form.get("user_last_name", "")
-        new_user_last_name = new_user_last_name.strip()
-
-        # Check for same value on the fields (User didnt change any fields)
-        if new_user_name == user["user_name"]: empty_fields +=1
-        if new_user_last_name == user["user_last_name"]: empty_fields += 1
-
-        if new_user_name:
-            parts.append("user_name = %s")
-            values.append(new_user_name)
-            user["user_name"] = new_user_name
-        # Check for completely empty field
-        else: # Questioning whether to send the old value if not entered in the query as well or just skip it
-            empty_fields += 1
-            new_user_name = user["user_name"]
-            parts.append("user_name = %s")
-            values.append(new_user_name)
-
-        if new_user_last_name:
-            parts.append("user_last_name = %s")
-            values.append(new_user_last_name)
-            user["user_last_name"] = new_user_last_name
-        else:
-            empty_fields += 1
-            new_user_last_name = user["user_last_name"]
-            parts.append("user_last_name = %s")
-            values.append(new_user_last_name)
+        return ex.args[0], ex.args[1]
         
-        if empty_fields == 2: 
-            status_change = {
-                "message": "No changes made",
-                "color": "status-red"
-            }
-            user_more_html = render_template("___user_more.html", user=user, status_change=status_change)
+        """
+        try:
+            print(f"***************{ex}", flush=True) # ('User first name minimum 2 characters', 400)
+            print(f"0: {ex.args[0]}", flush=True)
+            print(f"1: {ex.args[1]}", flush=True)
+            return ex.args[0], ex.args[1]
+        except Exception as e:
+            return "ups"
+            print(e, flush=True)
+            if "Duplicate entry" in str(e) and "user_username" in str(e):
+                return "User_username already exists", 400
+        """
+
+        """
+        # 1062 (23000): Duplicate entry 'Dani' for key 'user_username'
+        print(ex, flush=True) # ('User first name minimum 2 characters', 400)
+        return ex.args[0], ex.args[1]
+        """
+    finally:
+        if "cursor" in locals(): cursor.close()
+        if "db" in locals(): db.close()
+
+##############################
+@app.get("/signup")
+def show_signup():
+    try:
+        return render_template("page_signup.html", x=x)
+    except Exception as ex:
+        print(ex, flush=True)
+        return "ups..."
+
+##############################
+@app.post("/check-username")
+def check_username():
+    try:
+        user_username = x.validate_user_username()
+        db, cursor = x.db()
+        q = "SELECT * FROM users WHERE user_username = %s"
+        cursor.execute(q, (user_username,))
+        row = cursor.fetchone()
+        if not row:
             return f"""
-            <browser mix-update="#right">
-            {user_more_html}
-            </browser>
-            """
-        else:
-            # Convert the list to a string with a comma in between
-            partial_query = ", ".join(parts)
-            values.append(user_pk)
-            q2 = f"""
-                UPDATE users
-                SET	{partial_query}
-                WHERE user_pk = %s
-            """
-            cursor.execute(q2, values)
-            db.commit()
-            status_change = {"message": "User Updated", "color": "status-green"}
-            user_more_html = render_template("___user_more.html", user=user, status_change = status_change)
-            return f"""
-                <browser mix-update="#right">
-                {user_more_html}
+                <browser mix-update="span">
+                    Username available
                 </browser>
             """
+        return f"""
+            <browser mix-update="span">
+                Username taken
+            </browser>
+        """
+
     except Exception as ex:
-        print(ex)
-        # Cast the exception to an string
-        return str(ex), 500 # Internal server error
+        print(ex, flush=True)
+
+        return f"""
+            <browser mix-update="span">
+                {ex.args[0]}
+            </browser>
+        """
     finally:
         if "cursor" in locals(): cursor.close()
         if "db" in locals(): db.close()
-
-
-
-
-
-
-
-

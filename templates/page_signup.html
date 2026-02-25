@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/app.css">
+    <script src="/static/app.js" defer></script>
+    <title>
+        Signup
+    </title>
+</head>
+
+<body>
+
+    <h1>
+        {{ x.USER_USERNAME_MIN }}
+    </h1>
+    <h1>
+        {{ x.USER_USERNAME_MAX }}
+
+    </h1>
+    <form>
+        <label for="">Username</label>
+        <input name="user_username" type="text" mix-post="/check-username" mix-input mix-delay="1000"
+           mix-validate="{{x.USER_USERNAME_REGEX}}">
+        <span>xxxxxxxxx</span>
+    </form>
+
+
+
+    <script src="/static/mixhtml.js"></script>
+
+</body>
+
+</html>
